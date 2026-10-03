@@ -1,1 +1,493 @@
 
+/*
+  ==========================================================
+  SMART PAWS - GPS Dog Safety Belt
+  ESP32 Firmware
+  ==========================================================
+
+  Hardware:
+    - ESP32 Dev Module
+    - NEO-6M GPS module   (RX=16, TX=17, 9600 baud)
+    - 0.96" I2C OLED       (SDA=21, SCL=22, addr 0x3C)
+    - Active buzzer        (GPIO25)
+    - Push button (HOME)   (GPIO27, INPUT_PULLUP)
+
+  What this firmware does:
+    1. Reads GPS via TinyGPSPlus (existing logic kept as-is).
+    2. Calculates distance to HOME using distanceBetween().
+    3. Drives buzzer + OLED for SAFE / OUTSIDE (existing logic kept).
+    4. NEW: Connects to your phone's Wi-Fi hotspot.
+    5. NEW: Runs a small local HTTP server (WebServer on port 80)
+       that serves JSON so the Android app can poll status
+       and set HOME remotely. No cloud, no internet needed -
+       everything stays on the local hotspot network.
+
+  Required libraries (install via Arduino Library Manager):
+    - TinyGPSPlus         by Mikal Hart
+    - Adafruit SSD1306
+    - Adafruit GFX Library
+    - ArduinoJson          by Benoit Blanchon (v6.x)
+    (WiFi.h and WebServer.h are built into the ESP32 board package)
+  ==========================================================
+*/
+
+#include <WiFi.h>
+#include <WebServer.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include <TinyGPSPlus.h>
+#include <ArduinoJson.h>
+#include <HardwareSerial.h>
+
+// ---------------------------------------------------------
+// WIFI CONFIG  -- put your phone hotspot credentials here
+// ---------------------------------------------------------
+const char* WIFI_SSID     = "YOUR_PHONE_HOTSPOT";
+const char* WIFI_PASSWORD = "YOUR_HOTSPOT_PASSWORD";
+
+// ---------------------------------------------------------
+// PIN CONFIG
+// ---------------------------------------------------------
+#define GPS_RX_PIN   16   // ESP32 RX  <- GPS TX
+#define GPS_TX_PIN   17   // ESP32 TX  -> GPS RX
+#define OLED_SDA     21
+#define OLED_SCL     22
+#define BUZZER_PIN   25
+#define BUTTON_PIN   27
+
+#define GPS_BAUD     9600
+#define OLED_WIDTH   128
+#define OLED_HEIGHT  64
+#define OLED_ADDR    0x3C
+
+// ---------------------------------------------------------
+// GEOFENCE
+// ---------------------------------------------------------
+const double GEOFENCE_RADIUS_M = 10.0;
+
+// ---------------------------------------------------------
+// GLOBAL OBJECTS
+// ---------------------------------------------------------
+HardwareSerial gpsSerial(2);           // UART2 for GPS
+TinyGPSPlus gps;
+Adafruit_SSD1306 display(OLED_WIDTH, OLED_HEIGHT, &Wire, -1);
+WebServer server(80);
+
+// ---------------------------------------------------------
+// STATE
+// ---------------------------------------------------------
+bool homeSet = false;
+double homeLat = 0.0;
+double homeLon = 0.0;
+
+double currentLat = 0.0;
+double currentLon = 0.0;
+int satellites = 0;
+bool gpsFixValid = false;
+
+double distanceToHome = 0.0;
+bool isSafe = true;      // default SAFE until proven otherwise
+bool buzzerOn = false;
+
+// Button debounce
+bool lastButtonState = HIGH;
+unsigned long lastButtonPressTime = 0;
+const unsigned long DEBOUNCE_MS = 250;
+
+// OLED "HOME SET" temporary message
+unsigned long homeMsgUntil = 0;
+
+// Periodic serial debug print
+unsigned long lastDebugPrint = 0;
+const unsigned long DEBUG_INTERVAL_MS = 2000;
+
+// ---------------------------------------------------------
+// FORWARD DECLARATIONS
+// ---------------------------------------------------------
+void connectWiFi();
+void setupServer();
+void readGPS();
+void updateGeofence();
+void updateBuzzer();
+void updateOled();
+void handleButton();
+void printSerialDebug();
+
+void handleRoot();
+void handleApiStatus();
+void handleApiGps();
+void handleApiHomeGet();
+void handleApiHomePost();
+void handleNotFound();
+
+// ==========================================================
+// SETUP
+// ==========================================================
+void setup() {
+  Serial.begin(115200);
+  delay(200);
+
+  Serial.println();
+  Serial.println("================================");
+  Serial.println("       SMART PAWS");
+  Serial.println("================================");
+
+  pinMode(BUZZER_PIN, OUTPUT);
+  digitalWrite(BUZZER_PIN, LOW);
+
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+
+  // GPS serial (existing setup)
+  gpsSerial.begin(GPS_BAUD, SERIAL_8N1, GPS_RX_PIN, GPS_TX_PIN);
+
+  // OLED init (existing setup)
+  Wire.begin(OLED_SDA, OLED_SCL);
+  if (!display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR)) {
+    Serial.println("OLED init failed!");
+  } else {
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setTextColor(SSD1306_WHITE);
+    display.setCursor(0, 0);
+    display.println("SMART PAWS");
+    display.println("Starting...");
+    display.display();
+  }
+
+  // Wi-Fi + HTTP server (NEW)
+  connectWiFi();
+  setupServer();
+
+  Serial.println("Setup complete.");
+  Serial.println("================================");
+}
+
+// ==========================================================
+// LOOP
+// ==========================================================
+void loop() {
+  readGPS();          // existing GPS parsing logic
+  updateGeofence();    // existing distance/geofence logic
+  updateBuzzer();       // existing buzzer logic
+  handleButton();        // existing HOME button logic
+  updateOled();            // existing OLED display logic
+
+  server.handleClient();     // NEW: serve HTTP requests
+
+  if (millis() - lastDebugPrint > DEBUG_INTERVAL_MS) {
+    printSerialDebug();
+    lastDebugPrint = millis();
+  }
+}
+
+// ==========================================================
+// WIFI CONNECT
+// ==========================================================
+void connectWiFi() {
+  Serial.println("WiFi connecting...");
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+  unsigned long start = millis();
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(300);
+    Serial.print(".");
+    // Don't block forever - after 30s keep retrying in background
+    if (millis() - start > 30000) {
+      Serial.println();
+      Serial.println("Still trying to connect to WiFi...");
+      start = millis();
+    }
+  }
+
+  Serial.println();
+  Serial.println("WiFi connected!");
+  Serial.println("SMART PAWS WIFI CONNECTED");
+  Serial.print("IP ADDRESS: ");
+  Serial.println(WiFi.localIP());
+}
+
+// ==========================================================
+// HTTP SERVER SETUP
+// ==========================================================
+void setupServer() {
+  server.on("/", HTTP_GET, handleRoot);
+  server.on("/api/status", HTTP_GET, handleApiStatus);
+  server.on("/api/gps", HTTP_GET, handleApiGps);
+  server.on("/api/home", HTTP_GET, handleApiHomeGet);
+  server.on("/api/home", HTTP_POST, handleApiHomePost);
+  server.onNotFound(handleNotFound);
+  server.begin();
+  Serial.println("HTTP SERVER STARTED");
+}
+
+// ==========================================================
+// GPS READING (existing logic - kept as-is)
+// ==========================================================
+void readGPS() {
+  while (gpsSerial.available() > 0) {
+    gps.encode(gpsSerial.read());
+  }
+
+  if (gps.location.isValid()) {
+    currentLat = gps.location.lat();
+    currentLon = gps.location.lng();
+    gpsFixValid = true;
+  } else {
+    gpsFixValid = false;
+  }
+
+  if (gps.satellites.isValid()) {
+    satellites = gps.satellites.value();
+  } else {
+    satellites = 0;
+  }
+}
+
+// ==========================================================
+// GEOFENCE CALCULATION (existing logic - kept as-is)
+// ==========================================================
+void updateGeofence() {
+  if (!gpsFixValid || !homeSet) {
+    // No valid fix or HOME not set yet -> don't calculate a false result
+    distanceToHome = 0.0;
+    isSafe = true; // stay safe/quiet until we actually know
+    return;
+  }
+
+  distanceToHome = TinyGPSPlus::distanceBetween(
+      currentLat, currentLon,
+      homeLat, homeLon);
+
+  isSafe = (distanceToHome <= GEOFENCE_RADIUS_M);
+}
+
+// ==========================================================
+// BUZZER (existing logic - kept as-is)
+// ==========================================================
+void updateBuzzer() {
+  // Only buzz when we have a valid fix, HOME is set, and dog is OUTSIDE.
+  bool shouldBuzz = gpsFixValid && homeSet && !isSafe;
+
+  if (shouldBuzz != buzzerOn) {
+    buzzerOn = shouldBuzz;
+    digitalWrite(BUZZER_PIN, buzzerOn ? HIGH : LOW);
+  }
+}
+
+// ==========================================================
+// HOME BUTTON (existing logic - kept as-is)
+// ==========================================================
+void handleButton() {
+  bool reading = digitalRead(BUTTON_PIN);
+
+  if (reading == LOW && lastButtonState == HIGH &&
+      (millis() - lastButtonPressTime) > DEBOUNCE_MS) {
+    lastButtonPressTime = millis();
+
+    if (gpsFixValid) {
+      homeLat = currentLat;
+      homeLon = currentLon;
+      homeSet = true;
+
+      Serial.println("HOME SET");
+      Serial.print("LAT: ");
+      Serial.println(homeLat, 6);
+      Serial.print("LON: ");
+      Serial.println(homeLon, 6);
+
+      homeMsgUntil = millis() + 2000; // show "HOME SET" on OLED for 2s
+    } else {
+      Serial.println("HOME SET FAILED - no GPS fix yet");
+    }
+  }
+
+  lastButtonState = reading;
+}
+
+// ==========================================================
+// OLED DISPLAY (existing logic - kept as-is)
+// ==========================================================
+void updateOled() {
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(0, 0);
+  display.println("SMART PAWS");
+
+  if (millis() < homeMsgUntil) {
+    display.setTextSize(2);
+    display.setCursor(0, 20);
+    display.println("HOME SET");
+    display.display();
+    return;
+  }
+
+  if (!gpsFixValid) {
+    display.println("GPS: WAITING");
+    display.setCursor(0, 20);
+    display.setTextSize(2);
+    display.println("GPS WAITING");
+    display.display();
+    return;
+  }
+
+  display.println("GPS: OK");
+  display.print("LAT: ");
+  display.println(currentLat, 6);
+  display.print("LON: ");
+  display.println(currentLon, 6);
+  display.print("SAT: ");
+  display.println(satellites);
+
+  if (WiFi.status() == WL_CONNECTED) {
+    display.println("WiFi: OK");
+  }
+
+  display.setTextSize(2);
+  display.setCursor(0, 48);
+  if (!homeSet) {
+    display.println("NO HOME");
+  } else if (isSafe) {
+    display.println("SAFE");
+  } else {
+    display.println("OUTSIDE");
+  }
+
+  display.display();
+}
+
+// ==========================================================
+// SERIAL DEBUG
+// ==========================================================
+void printSerialDebug() {
+  Serial.println("--------------------------------");
+  Serial.println("GPS:");
+  if (gpsFixValid) {
+    Serial.print("Latitude: ");
+    Serial.println(currentLat, 6);
+    Serial.print("Longitude: ");
+    Serial.println(currentLon, 6);
+  } else {
+    Serial.println("Latitude: INVALID");
+    Serial.println("Longitude: INVALID");
+  }
+  Serial.print("Satellites: ");
+  Serial.println(satellites);
+
+  Serial.println("HOME:");
+  if (homeSet) {
+    Serial.print("Latitude: ");
+    Serial.println(homeLat, 6);
+    Serial.print("Longitude: ");
+    Serial.println(homeLon, 6);
+  } else {
+    Serial.println("NOT SET");
+  }
+
+  Serial.print("Distance: ");
+  Serial.println(distanceToHome, 2);
+  Serial.print("Status: ");
+  Serial.println(isSafe ? "SAFE" : "OUTSIDE");
+  Serial.println("--------------------------------");
+}
+
+// ==========================================================
+// HTTP HANDLERS
+// ==========================================================
+
+void handleRoot() {
+  String html =
+      "<html><head><title>SMART PAWS</title></head><body>"
+      "<h2>SMART PAWS - GPS Dog Safety Belt</h2>"
+      "<p>Device is online.</p>"
+      "<ul>"
+      "<li>GET /api/status</li>"
+      "<li>GET /api/gps</li>"
+      "<li>GET /api/home</li>"
+      "<li>POST /api/home</li>"
+      "</ul>"
+      "</body></html>";
+  server.send(200, "text/html", html);
+}
+
+void handleApiStatus() {
+  StaticJsonDocument<512> doc;
+
+  doc["device"] = "SMART PAWS";
+  doc["latitude"] = gpsFixValid ? currentLat : 0.0;
+  doc["longitude"] = gpsFixValid ? currentLon : 0.0;
+  doc["satellites"] = satellites;
+  doc["distance"] = distanceToHome;
+  doc["radius"] = GEOFENCE_RADIUS_M;
+  doc["safe"] = isSafe;
+  doc["outside"] = !isSafe;
+  doc["homeSet"] = homeSet;
+  doc["homeLatitude"] = homeLat;
+  doc["homeLongitude"] = homeLon;
+  doc["status"] = !homeSet ? "NO_HOME" : (isSafe ? "SAFE" : "OUTSIDE");
+  doc["buzzer"] = buzzerOn;
+  doc["gpsFix"] = gpsFixValid;
+
+  String output;
+  serializeJson(doc, output);
+  server.send(200, "application/json", output);
+}
+
+void handleApiGps() {
+  StaticJsonDocument<256> doc;
+  doc["latitude"] = gpsFixValid ? currentLat : 0.0;
+  doc["longitude"] = gpsFixValid ? currentLon : 0.0;
+  doc["satellites"] = satellites;
+  doc["fix"] = gpsFixValid;
+
+  String output;
+  serializeJson(doc, output);
+  server.send(200, "application/json", output);
+}
+
+void handleApiHomeGet() {
+  StaticJsonDocument<256> doc;
+  doc["homeSet"] = homeSet;
+  doc["homeLatitude"] = homeLat;
+  doc["homeLongitude"] = homeLon;
+
+  String output;
+  serializeJson(doc, output);
+  server.send(200, "application/json", output);
+}
+
+void handleApiHomePost() {
+  StaticJsonDocument<256> doc;
+
+  if (!gpsFixValid) {
+    doc["success"] = false;
+    doc["message"] = "NO GPS FIX";
+    String output;
+    serializeJson(doc, output);
+    server.send(400, "application/json", output);
+    return;
+  }
+
+  homeLat = currentLat;
+  homeLon = currentLon;
+  homeSet = true;
+  homeMsgUntil = millis() + 2000;
+
+  Serial.println("HOME SET (via app)");
+  Serial.print("LAT: ");
+  Serial.println(homeLat, 6);
+  Serial.print("LON: ");
+  Serial.println(homeLon, 6);
+
+  doc["success"] = true;
+  doc["message"] = "HOME SET";
+  String output;
+  serializeJson(doc, output);
+  server.send(200, "application/json", output);
+}
+
+void handleNotFound() {
+  server.send(404, "application/json", "{\"error\":\"not found\"}");
+}
