@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/paw_bg">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🐾 SMART PAWS" android:textColor="@color/paw_text" android:textSize="28sp" android:textStyle="bold"/>
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="GPS Dog Safety Monitor" android:textColor="@color/paw_muted" android:textSize="15sp"/>
+        <LinearLayout android:id="@+id/loginPanel" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="28dp" android:orientation="vertical">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Firebase Login" android:textColor="@color/paw_text" android:textSize="20sp" android:textStyle="bold"/>
+            <EditText android:id="@+id/emailInput" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:hint="Firebase email" android:inputType="textEmailAddress"/>
+            <EditText android:id="@+id/passwordInput" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:hint="Firebase password" android:inputType="textPassword"/>
+            <Button android:id="@+id/loginButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="CONNECT TO SMART PAWS"/>
+            <TextView android:id="@+id/loginMessage" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:textColor="@color/paw_muted"/>
+        </LinearLayout>
+        <LinearLayout android:id="@+id/dashboardPanel" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:orientation="vertical" android:visibility="gone">
+            <TextView android:id="@+id/statusCard" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="#E8F7EE" android:gravity="center" android:padding="28dp" android:text="🟢 SAFE" android:textColor="@color/paw_green" android:textSize="30sp" android:textStyle="bold"/>
+            <TextView android:id="@+id/alertText" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:gravity="center" android:text="Your dog is inside the safe zone." android:textColor="@color/paw_muted" android:textSize="15sp"/>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="18dp" android:orientation="vertical" android:background="@android:color/white" android:padding="18dp">
+                <TextView android:id="@+id/distanceText" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Distance: -- m" android:textSize="18sp" android:textStyle="bold"/>
+                <TextView android:id="@+id/gpsText" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="GPS: --"/>
+                <TextView android:id="@+id/satelliteText" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Satellites: --"/>
+                <TextView android:id="@+id/homeText" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Home: --"/>
+                <TextView android:id="@+id/radiusText" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Safe radius: 10 m"/>
+                <TextView android:id="@+id/updatedText" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Last update: --" android:textColor="@color/paw_muted"/>
+            </LinearLayout>
+            <Button android:id="@+id/mapButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="14dp" android:text="📍 OPEN DOG LOCATION IN MAP"/>
+            <Button android:id="@+id/logoutButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="DISCONNECT"/>
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "375023792053",
+    "firebase_url": "https://smart-paws-1570e-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "smart-paws-1570e",
+    "storage_bucket": "smart-paws-1570e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:375023792053:android:7fe3fa234664de315fb3fc",
+        "android_client_info": {
+          "package_name": "com.madhesh.smartpaws"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDUNsLOt9rV1qT63vvTgev5dnPK86dnCPg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

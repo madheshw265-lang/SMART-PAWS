@@ -1,0 +1,8 @@
+<resources>
+    <color name="paw_green">#16A34A</color>
+    <color name="paw_red">#DC2626</color>
+    <color name="paw_blue">#2563EB</color>
+    <color name="paw_bg">#F6F8FB</color>
+    <color name="paw_text">#172033</color>
+    <color name="paw_muted">#667085</color>
+</resources>
