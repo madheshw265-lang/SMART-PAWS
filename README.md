@@ -90,9 +90,6 @@ When the device remains within the configured boundary, the system reports a **S
 ## 🔄 How It Works
 
 ```
-```
-
-```
              POWER ON
                  │
                  ▼
@@ -141,9 +138,6 @@ When the device remains within the configured boundary, the system reports a **S
 The home position acts as the center of the safety boundary.
 
 ```
-```
-
-```
                     OUTSIDE
                        ▲
                        │
@@ -161,9 +155,6 @@ The home position acts as the center of the safety boundary.
 ```
 
 ### Decision Logic
-
-```
-```
 
 ```
 Distance ≤ 10 m
@@ -216,9 +207,6 @@ The ESP32 communicates with the GPS module through UART.
 ### GPS Connection
 
 ```
-```
-
-```
 NEO-6M TX  → ESP32 GPIO16
 NEO-6M RX  → ESP32 GPIO17
 NEO-6M VCC → ESP32 3.3V
@@ -269,9 +257,6 @@ The 0.96-inch I2C OLED provides local feedback from the device.
 Example:
 
 ```
-```
-
-```
 SMART PAWS
 
 GPS  : FIXED
@@ -282,9 +267,6 @@ STATUS: SAFE
 ```
 
 When the device moves outside the configured geofence:
-
-```
-```
 
 ```
 SMART PAWS
@@ -304,16 +286,10 @@ The OLED allows the device status to be checked locally without depending on the
 The active buzzer is connected to:
 
 ```
-```
-
-```
 ESP32 GPIO25
 ```
 
 The ESP32 controls the buzzer according to the geofence state.
-
-```
-```
 
 ```
               GPS POSITION
@@ -354,9 +330,6 @@ SMART PAWS includes an Android companion application for mobile monitoring.
 Android source:
 
 ```
-```
-
-```
 android/
 └── SMART_PAWS_Android/
 ```
@@ -366,9 +339,6 @@ android/
 # 📶 Connectivity
 
 The current prototype uses a **mobile phone hotspot** for Wi-Fi connectivity.
-
-```
-```
 
 ```
         ┌───────────────┐
@@ -405,12 +375,9 @@ The following test cases document the observed geofence states.
 
 The device is positioned at or very close to the configured home location.
 
-[SMART PAWS Safe 0m](docs/media/safe_0m.jpg)
+<p align="center"><img src="docs/media/safe_0m.jpg" alt="SMART PAWS Safe state - 0 meters" width="520"></p>
 
 **Observed condition**
-
-```
-```
 
 ```
 Distance : Approximately 0 m
@@ -423,12 +390,9 @@ Status   : SAFE
 
 The device is moved away from the home position while remaining inside the 10-meter geofence.
 
-[SMART PAWS Movement 5m](docs/media/move_5m.jpg)
+<p align="center"><img src="docs/media/move_5m.jpg" alt="SMART PAWS movement state - 5 meters" width="520"></p>
 
 **Observed condition**
-
-```
-```
 
 ```
 Distance : Approximately 5 m
@@ -441,12 +405,9 @@ Status   : SAFE
 
 The device is moved beyond the configured 10-meter geofence boundary.
 
-[SMART PAWS Outside 12m](docs/media/unsafe_12m.jpg)
+<p align="center"><img src="docs/media/unsafe_12m.jpg" alt="SMART PAWS outside state - 12 meters" width="520"></p>
 
 **Observed condition**
-
-```
-```
 
 ```
 Distance : Approximately 12 m
@@ -475,18 +436,12 @@ A video of the physical SMART PAWS prototype is included in the repository.
 ### ▶️ [Watch the SMART PAWS Prototype Video](docs/media/Smart_paws_01.mp4)
 
 ```
-```
-
-```
 docs/media/Smart_paws_01.mp4
 ```
 
 ---
 
 # 📂 Project Structure
-
-```
-```
 
 ```
 SMART-PAWS/
@@ -545,9 +500,6 @@ SMART-PAWS/
 # 🛠️ Development Environment
 
 ```
-```
-
-```
 Arduino IDE : 2.3.10
 ESP32 Core  : 3.3.12
 ```
@@ -563,9 +515,6 @@ The GPS receiver was independently tested before integrating the complete geofen
 A successful hardware test produced:
 
 ```
-```
-
-```
 GPS Characters : 8400+
 GPS Fix        : VALID
 Satellites     : 10
@@ -578,9 +527,6 @@ This confirmed communication between the NEO-6M GPS receiver and the ESP32.
 ---
 
 # ⚙️ Operating Sequence
-
-```
-```
 
 ```
 1. Power ON
@@ -619,16 +565,10 @@ The ESP32 receives latitude and longitude from the NEO-6M module and compares th
 The calculated distance determines whether the device is:
 
 ```
-```
-
-```
 SAFE
 ```
 
 or
-
-```
-```
 
 ```
 OUTSIDE
