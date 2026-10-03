@@ -1,0 +1,22 @@
+# Android
+.gradle/
+build/
+**/build/
+local.properties
+*.apk
+*.aab
+
+# Arduino build artifacts
+*.elf
+*.bin
+*.hex
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Secrets
+.env
+*.key
+secrets/
