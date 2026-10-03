@@ -435,11 +435,18 @@ These tests demonstrate the basic operation of the GPS-based geofence using the 
 
 A video of the physical SMART PAWS prototype is included in the repository.
 
-### ▶️ [Watch the SMART PAWS Prototype Video](docs/media/Smart_paws_01.mp4)
+### ▶️ SMART PAWS Prototype Video
 
-```
-docs/media/Smart_paws_01.mp4
-```
+<p align="center">
+  <video controls width="760">
+    <source src="docs/media/Smart_paws_01.mp4" type="video/mp4">
+    Your browser does not support the video element.
+  </video>
+</p>
+
+<p align="center">
+  <a href="docs/media/Smart_paws_01.mp4">▶ Open the prototype video</a>
+</p>
 
 ---
 
