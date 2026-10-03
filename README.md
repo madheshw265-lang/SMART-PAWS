@@ -1,5 +1,4 @@
-```
-🐾 SMART PAWS
+# 🐾 SMART PAWS
 
 ## GPS-Based Smart Safety Belt for Dogs
 
@@ -64,7 +63,8 @@ When the device remains within the configured boundary, the system reports a **S
                     │ Geofence Status  │
                     │ Location        │
                     └─────────────────┘
-```
+
+---
 
 ---
 
