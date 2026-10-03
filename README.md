@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/media/smart-paws-banner.svg" alt="SMART PAWS banner" width="100%"></p>
+
 # 🐾 SMART PAWS
 
 ## GPS-Based Smart Safety Belt for Dogs
