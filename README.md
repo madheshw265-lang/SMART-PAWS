@@ -65,6 +65,7 @@ When the device remains within the configured boundary, the system reports a **S
                     └─────────────────┘
 
 ---
+```
 
 ---
 
